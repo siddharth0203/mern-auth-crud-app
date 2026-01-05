@@ -50,3 +50,9 @@ A full-stack Course Management Application built using the MERN stack, allowing 
 cd backend
 npm install
 node server.js
+
+<img width="1354" height="630" alt="Screenshot 2026-01-05 120850" src="https://github.com/user-attachments/assets/6655b75a-3f12-4e27-b458-ec88ae8eec83" />
+<img width="1355" height="626" alt="Screenshot 2026-01-05 120917" src="https://github.com/user-attachments/assets/10730640-ca51-487f-a42e-79341c876e51" />
+
+
+
