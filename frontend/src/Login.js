@@ -11,22 +11,43 @@ class Login extends React.Component {
     super(props);
     this.state = {
       username: '',
-      password: ''
+      email: '',
+      password: '',
+      emailError: ''
     };
   }
 
   onChange = (e) => this.setState({ [e.target.name]: e.target.value });
 
+  validateEmail = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(this.state.email)) {
+      this.setState({ emailError: 'Invalid email format' });
+      return false;
+    }
+    this.setState({ emailError: '' });
+    return true;
+  };
+
   login = () => {
+    if (!this.validateEmail()) {
+      swal({
+        text: "Please enter a valid email address.",
+        icon: "error",
+        type: "error"
+      });
+      return;
+    }
+
     const pwd = bcrypt.hashSync(this.state.password, salt);
 
     axios.post('http://localhost:2000/login', {
       username: this.state.username,
+      email: this.state.email,
       password: pwd,
     }).then((res) => {
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user_id', res.data.id);
-      // this.props.history.push('/dashboard');
       this.props.navigate("/dashboard");
     }).catch((err) => {
       if (err.response && err.response.data && err.response.data.errorMessage) {
@@ -60,6 +81,21 @@ class Login extends React.Component {
           <br /><br />
           <TextField
             id="standard-basic"
+            type="email"
+            autoComplete="off"
+            name="email"
+            value={this.state.email}
+            onChange={this.onChange}
+            onBlur={this.validateEmail}
+            placeholder="Email"
+            required
+          />
+          {this.state.emailError && (
+            <div style={{ color: 'red', fontSize: '12px' }}>{this.state.emailError}</div>
+          )}
+          <br /><br />
+          <TextField
+            id="standard-basic"
             type="password"
             autoComplete="off"
             name="password"
@@ -74,13 +110,12 @@ class Login extends React.Component {
             variant="contained"
             color="primary"
             size="small"
-            disabled={this.state.username == '' && this.state.password == ''}
+            disabled={this.state.username === '' || this.state.password === '' || this.state.email === ''}
             onClick={this.login}
           >
             Login
           </Button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <Link
-            // href="/register"
             component="button"
             style={{ fontFamily: "inherit", fontSize: "inherit" }}
             onClick={() => {

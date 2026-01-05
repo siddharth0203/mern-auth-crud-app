@@ -9,17 +9,47 @@ class Register extends React.Component {
     super(props);
     this.state = {
       username: '',
+      email: '',
       password: '',
-      confirm_password: ''
+      confirm_password: '',
+      emailError: ''
     };
   }
 
   onChange = (e) => this.setState({ [e.target.name]: e.target.value });
 
+  validateEmail = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(this.state.email)) {
+      this.setState({ emailError: 'Invalid email format' });
+      return false;
+    }
+    this.setState({ emailError: '' });
+    return true;
+  };
+
   register = () => {
+    if (!this.validateEmail()) {
+      swal({
+        text: "Please enter a valid email address.",
+        icon: "error",
+        type: "error"
+      });
+      return;
+    }
+
+    if (this.state.password !== this.state.confirm_password) {
+      swal({
+        text: "Passwords do not match!",
+        icon: "error",
+        type: "error"
+      });
+      return;
+    }
 
     axios.post('http://localhost:2000/register', {
       username: this.state.username,
+      email: this.state.email,
       password: this.state.password,
     }).then((res) => {
       swal({
@@ -27,7 +57,6 @@ class Register extends React.Component {
         icon: "success",
         type: "success"
       });
-      // this.props.history.push('/');
       this.props.navigate("/");
     }).catch((err) => {
       swal({
@@ -59,6 +88,21 @@ class Register extends React.Component {
           <br /><br />
           <TextField
             id="standard-basic"
+            type="email"
+            autoComplete="off"
+            name="email"
+            value={this.state.email}
+            onChange={this.onChange}
+            onBlur={this.validateEmail}
+            placeholder="Email"
+            required
+          />
+          {this.state.emailError && (
+            <div style={{ color: 'red', fontSize: '12px' }}>{this.state.emailError}</div>
+          )}
+          <br /><br />
+          <TextField
+            id="standard-basic"
             type="password"
             autoComplete="off"
             name="password"
@@ -84,13 +128,12 @@ class Register extends React.Component {
             variant="contained"
             color="primary"
             size="small"
-            disabled={this.state.username == '' && this.state.password == ''}
+            disabled={this.state.username === '' || this.state.password === '' || this.state.email === ''}
             onClick={this.register}
           >
             Register
           </Button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <Link
-            // href="/"
             component="button"
             style={{ fontFamily: "inherit", fontSize: "inherit" }}
             onClick={() => {

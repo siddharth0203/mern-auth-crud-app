@@ -14,18 +14,34 @@ class Dashboard extends Component {
     super();
     this.state = {
       token: '',
-      openProductModal: false,
-      openProductEditModal: false,
+      openCourseModal: false,
+      openCourseEditModal: false,
       id: '',
       name: '',
       desc: '',
-      price: '',
-      discount: '',
-      file: '',
-      fileName: '',
+      instructor: '',
       page: 1,
       search: '',
-      products: [],
+      courses: [
+        {
+          _id: "1",
+          name: "Introduction to Programming",
+          desc: "Learn the basics of programming.",
+          instructor: "John Doe"
+        },
+        {
+          _id: "2",
+          name: "Advanced JavaScript",
+          desc: "Deep dive into JavaScript concepts.",
+          instructor: "Jane Smith"
+        },
+        {
+          _id: "3",
+          name: "Web Development",
+          desc: "Build modern web applications.",
+          instructor: "Alice Johnson"
+        }
+      ],
       pages: 0,
       loading: false
     };
@@ -34,59 +50,50 @@ class Dashboard extends Component {
   componentDidMount = () => {
     let token = localStorage.getItem('token');
     if (!token) {
-      // this.props.history.push('/login');
       this.props.navigate("/login");
     } else {
       this.setState({ token: token }, () => {
-        this.getProduct();
+        this.getCourses();
       });
     }
   }
 
-  getProduct = () => {
-    
+  getCourses = () => {
     this.setState({ loading: true });
 
-    let data = '?';
-    data = `${data}page=${this.state.page}`;
+    let data = `?page=${this.state.page}`;
     if (this.state.search) {
       data = `${data}&search=${this.state.search}`;
     }
-    axios.get(`http://localhost:2000/get-product${data}`, {
+
+    axios.get(`http://localhost:2000/get-courses${data}`, {
       headers: {
         'token': this.state.token
       }
     }).then((res) => {
-      this.setState({ loading: false, products: res.data.products, pages: res.data.pages });
+      this.setState({ loading: false, courses: res.data.courses, pages: res.data.pages });
     }).catch((err) => {
       swal({
         text: err.response.data.errorMessage,
         icon: "error",
         type: "error"
       });
-      this.setState({ loading: false, products: [], pages: 0 },()=>{});
     });
   }
 
-  deleteProduct = (id) => {
-    axios.post('http://localhost:2000/delete-product', {
-      id: id
-    }, {
+  deleteCourse = (id) => {
+    axios.delete(`http://localhost:2000/delete-course/${id}`, {
       headers: {
-        'Content-Type': 'application/json',
         'token': this.state.token
       }
     }).then((res) => {
-
       swal({
         text: res.data.title,
         icon: "success",
         type: "success"
       });
 
-      this.setState({ page: 1 }, () => {
-        this.pageChange(null, 1);
-      });
+      this.getCourses();
     }).catch((err) => {
       swal({
         text: err.response.data.errorMessage,
@@ -98,7 +105,7 @@ class Dashboard extends Component {
 
   pageChange = (e, page) => {
     this.setState({ page: page }, () => {
-      this.getProduct();
+      this.getCourses();
     });
   }
 
@@ -109,27 +116,21 @@ class Dashboard extends Component {
   }
 
   onChange = (e) => {
-    if (e.target.files && e.target.files[0] && e.target.files[0].name) {
-      this.setState({ fileName: e.target.files[0].name }, () => { });
-    }
     this.setState({ [e.target.name]: e.target.value }, () => { });
     if (e.target.name == 'search') {
       this.setState({ page: 1 }, () => {
-        this.getProduct();
+        this.getCourses();
       });
     }
   };
 
-  addProduct = () => {
-    const fileInput = document.querySelector("#fileInput");
+  addCourse = () => {
     const file = new FormData();
-    file.append('file', fileInput.files[0]);
-    file.append('name', this.state.name);
-    file.append('desc', this.state.desc);
-    file.append('discount', this.state.discount);
-    file.append('price', this.state.price);
+    file.append('name', this.state.name); // Course Name
+    file.append('desc', this.state.desc); // Description
+    file.append('instructor', this.state.instructor); // Instructor
 
-    axios.post('http://localhost:2000/add-product', file, {
+    axios.post('http://localhost:2000/add-course', file, {
       headers: {
         'content-type': 'multipart/form-data',
         'token': this.state.token
@@ -142,9 +143,9 @@ class Dashboard extends Component {
         type: "success"
       });
 
-      this.handleProductClose();
-      this.setState({ name: '', desc: '', discount: '', price: '', file: null, page: 1 }, () => {
-        this.getProduct();
+      this.handleCourseClose();
+      this.setState({ name: '', desc: '', instructor: '', page: 1 }, () => {
+        this.getCourses();
       });
     }).catch((err) => {
       swal({
@@ -152,79 +153,66 @@ class Dashboard extends Component {
         icon: "error",
         type: "error"
       });
-      this.handleProductClose();
+      this.handleCourseClose();
     });
 
   }
 
-  updateProduct = () => {
-    const fileInput = document.querySelector("#fileInput");
-    const file = new FormData();
-    file.append('id', this.state.id);
-    file.append('file', fileInput.files[0]);
-    file.append('name', this.state.name);
-    file.append('desc', this.state.desc);
-    file.append('discount', this.state.discount);
-    file.append('price', this.state.price);
+  updateCourse = () => {
+    const updatedCourse = {
+      name: this.state.name,
+      desc: this.state.desc,
+      instructor: this.state.instructor
+    };
 
-    axios.post('http://localhost:2000/update-product', file, {
+    axios.put(`http://localhost:2000/update-course/${this.state.id}`, updatedCourse, {
       headers: {
-        'content-type': 'multipart/form-data',
         'token': this.state.token
       }
     }).then((res) => {
-
       swal({
         text: res.data.title,
         icon: "success",
         type: "success"
       });
 
-      this.handleProductEditClose();
-      this.setState({ name: '', desc: '', discount: '', price: '', file: null }, () => {
-        this.getProduct();
-      });
+      this.handleCourseEditClose();
+      this.getCourses();
     }).catch((err) => {
       swal({
         text: err.response.data.errorMessage,
         icon: "error",
         type: "error"
       });
-      this.handleProductEditClose();
     });
-
   }
 
-  handleProductOpen = () => {
+  handleCourseOpen = () => {
     this.setState({
-      openProductModal: true,
+      openCourseModal: true,
       id: '',
       name: '',
       desc: '',
-      price: '',
-      discount: '',
-      fileName: ''
+      instructor: ''
     });
   };
 
-  handleProductClose = () => {
-    this.setState({ openProductModal: false });
+  handleCourseClose = () => {
+    this.setState({ openCourseModal: false });
   };
 
-  handleProductEditOpen = (data) => {
+  handleCourseEditOpen = (data) => {
     this.setState({
-      openProductEditModal: true,
+      openCourseEditModal: true,
       id: data._id,
       name: data.name,
       desc: data.desc,
-      price: data.price,
-      discount: data.discount,
-      fileName: data.image
+      instructor: data.instructor
     });
   };
 
-  handleProductEditClose = () => {
-    this.setState({ openProductEditModal: false });
+  handleCourseEditClose = () => {
+    this.setState({ openCourseEditModal: false });
   };
 
   render() {
@@ -238,9 +226,9 @@ class Dashboard extends Component {
             variant="contained"
             color="primary"
             size="small"
-            onClick={this.handleProductOpen}
+            onClick={this.handleCourseOpen}
           >
-            Add Product
+            Add Course
           </Button>
           <Button
             className="button_style"
@@ -252,14 +240,14 @@ class Dashboard extends Component {
           </Button>
         </div>
 
-        {/* Edit Product */}
+        {/* Edit Course */}
         <Dialog
-          open={this.state.openProductEditModal}
-          onClose={this.handleProductClose}
+          open={this.state.openCourseEditModal}
+          onClose={this.handleCourseClose}
           aria-labelledby="alert-dialog-title"
           aria-describedby="alert-dialog-description"
         >
-          <DialogTitle id="alert-dialog-title">Edit Product</DialogTitle>
+          <DialogTitle id="alert-dialog-title">Edit Course</DialogTitle>
           <DialogContent>
             <TextField
               id="standard-basic"
@@ -268,7 +256,7 @@ class Dashboard extends Component {
               name="name"
               value={this.state.name}
               onChange={this.onChange}
-              placeholder="Product Name"
+              placeholder="Course Name"
               required
             /><br />
             <TextField
@@ -283,62 +271,36 @@ class Dashboard extends Component {
             /><br />
             <TextField
               id="standard-basic"
-              type="number"
+              type="text"
               autoComplete="off"
-              name="price"
-              value={this.state.price}
+              name="instructor"
+              value={this.state.instructor}
               onChange={this.onChange}
-              placeholder="Price"
-              required
-            /><br />
-            <TextField
-              id="standard-basic"
-              type="number"
-              autoComplete="off"
-              name="discount"
-              value={this.state.discount}
-              onChange={this.onChange}
-              placeholder="Discount"
+              placeholder="Instructor"
               required
             /><br /><br />
-            <Button
-              variant="contained"
-              component="label"
-            > Upload
-            <input
-                type="file"
-                accept="image/*"
-                name="file"
-                value={this.state.file}
-                onChange={this.onChange}
-                id="fileInput"
-                placeholder="File"
-                hidden
-              />
-            </Button>&nbsp;
-            {this.state.fileName}
           </DialogContent>
 
           <DialogActions>
-            <Button onClick={this.handleProductEditClose} color="primary">
+            <Button onClick={this.handleCourseEditClose} color="primary">
               Cancel
             </Button>
             <Button
-              disabled={this.state.name == '' || this.state.desc == '' || this.state.discount == '' || this.state.price == ''}
-              onClick={(e) => this.updateProduct()} color="primary" autoFocus>
-              Edit Product
+              disabled={this.state.name == '' || this.state.desc == '' || this.state.instructor == ''}
+              onClick={(e) => this.updateCourse()} color="primary" autoFocus>
+              Edit Course
             </Button>
           </DialogActions>
         </Dialog>
 
-        {/* Add Product */}
+        {/* Add Course */}
         <Dialog
-          open={this.state.openProductModal}
-          onClose={this.handleProductClose}
+          open={this.state.openCourseModal}
+          onClose={this.handleCourseClose}
           aria-labelledby="alert-dialog-title"
           aria-describedby="alert-dialog-description"
         >
-          <DialogTitle id="alert-dialog-title">Add Product</DialogTitle>
+          <DialogTitle id="alert-dialog-title">Add Course</DialogTitle>
           <DialogContent>
             <TextField
               id="standard-basic"
@@ -347,7 +309,7 @@ class Dashboard extends Component {
               name="name"
               value={this.state.name}
               onChange={this.onChange}
-              placeholder="Product Name"
+              placeholder="Course Name"
               required
             /><br />
             <TextField
@@ -362,51 +324,24 @@ class Dashboard extends Component {
             /><br />
             <TextField
               id="standard-basic"
-              type="number"
+              type="text"
               autoComplete="off"
-              name="price"
-              value={this.state.price}
+              name="instructor"
+              value={this.state.instructor}
               onChange={this.onChange}
-              placeholder="Price"
-              required
-            /><br />
-            <TextField
-              id="standard-basic"
-              type="number"
-              autoComplete="off"
-              name="discount"
-              value={this.state.discount}
-              onChange={this.onChange}
-              placeholder="Discount"
+              placeholder="Instructor"
               required
             /><br /><br />
-            <Button
-              variant="contained"
-              component="label"
-            > Upload
-            <input
-                type="file"
-                accept="image/*"
-                name="file"
-                value={this.state.file}
-                onChange={this.onChange}
-                id="fileInput"
-                placeholder="File"
-                hidden
-                required
-              />
-            </Button>&nbsp;
-            {this.state.fileName}
           </DialogContent>
 
           <DialogActions>
-            <Button onClick={this.handleProductClose} color="primary">
+            <Button onClick={this.handleCourseClose} color="primary">
               Cancel
             </Button>
             <Button
-              disabled={this.state.name == '' || this.state.desc == '' || this.state.discount == '' || this.state.price == '' || this.state.file == null}
-              onClick={(e) => this.addProduct()} color="primary" autoFocus>
-              Add Product
+              disabled={this.state.name == '' || this.state.desc == '' || this.state.instructor == ''}
+              onClick={(e) => this.addCourse()} color="primary" autoFocus>
+              Add Course
             </Button>
           </DialogActions>
         </Dialog>
@@ -421,49 +356,45 @@ class Dashboard extends Component {
             name="search"
             value={this.state.search}
             onChange={this.onChange}
-            placeholder="Search by product name"
+            placeholder="Search by course name"
             required
           />
           <Table aria-label="simple table">
             <TableHead>
               <TableRow>
                 <TableCell align="center">Name</TableCell>
-                <TableCell align="center">Image</TableCell>
                 <TableCell align="center">Description</TableCell>
-                <TableCell align="center">Price</TableCell>
-                <TableCell align="center">Discount</TableCell>
+                <TableCell align="center">Instructor</TableCell>
                 <TableCell align="center">Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {this.state.products.map((row) => (
-                <TableRow key={row.name}>
+              {this.state.courses.map((row) => (
+                <TableRow key={row._id}>
                   <TableCell align="center" component="th" scope="row">
                     {row.name}
                   </TableCell>
-                  <TableCell align="center"><img src={`http://localhost:2000/${row.image}`} width="70" height="70" /></TableCell>
                   <TableCell align="center">{row.desc}</TableCell>
-                  <TableCell align="center">{row.price}</TableCell>
-                  <TableCell align="center">{row.discount}</TableCell>
+                  <TableCell align="center">{row.instructor}</TableCell>
                   <TableCell align="center">
                     <Button
                       className="button_style"
                       variant="outlined"
                       color="primary"
                       size="small"
-                      onClick={(e) => this.handleProductEditOpen(row)}
+                      onClick={() => this.handleCourseEditOpen(row)}
                     >
                       Edit
-                  </Button>
+                    </Button>
                     <Button
                       className="button_style"
                       variant="outlined"
                       color="secondary"
                       size="small"
-                      onClick={(e) => this.deleteProduct(row._id)}
+                      onClick={() => this.deleteCourse(row._id)}
                     >
                       Delete
-                  </Button>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

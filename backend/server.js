@@ -11,6 +11,7 @@ mongoose.connect("mongodb://localhost/productDB");
 var fs = require('fs');
 var product = require("./model/product.js");
 var user = require("./model/user.js");
+var course = require("./model/course.js");
 
 var dir = './uploads';
 var upload = multer({
@@ -77,8 +78,8 @@ app.get("/", (req, res) => {
 /* login api */
 app.post("/login", (req, res) => {
   try {
-    if (req.body && req.body.username && req.body.password) {
-      user.find({ username: req.body.username }, (err, data) => {
+    if (req.body && req.body.email && req.body.password) {
+      user.find({ email: req.body.email }, (err, data) => {
         if (data.length > 0) {
 
           if (bcrypt.compareSync(data[0].password, req.body.password)) {
@@ -86,44 +87,44 @@ app.post("/login", (req, res) => {
           } else {
 
             res.status(400).json({
-              errorMessage: 'Username or password is incorrect!',
+              errorMessage: 'Email or password is incorrect!',
               status: false
             });
           }
 
         } else {
           res.status(400).json({
-            errorMessage: 'Username or password is incorrect!',
+            errorMessage: 'Email or password is incorrect!',
             status: false
           });
         }
-      })
+      });
     } else {
       res.status(400).json({
-        errorMessage: 'Add proper parameter first!',
+        errorMessage: 'Email and password are required!',
         status: false
       });
     }
   } catch (e) {
-    res.status(400).json({
-      errorMessage: 'Something went wrong!',
+    res.status(500).json({
+      errorMessage: 'Internal server error!',
       status: false
     });
   }
-
 });
 
 /* register api */
 app.post("/register", (req, res) => {
   try {
-    if (req.body && req.body.username && req.body.password) {
+    if (req.body && req.body.username && req.body.email && req.body.password) {
 
-      user.find({ username: req.body.username }, (err, data) => {
+      user.find({ $or: [{ username: req.body.username }, { email: req.body.email }] }, (err, data) => {
 
         if (data.length == 0) {
 
           let User = new user({
             username: req.body.username,
+            email: req.body.email,
             password: req.body.password
           });
           User.save((err, data) => {
@@ -141,8 +142,9 @@ app.post("/register", (req, res) => {
           });
 
         } else {
+          const existingField = data[0].email === req.body.email ? 'Email' : 'Username';
           res.status(400).json({
-            errorMessage: `UserName ${req.body.username} Already Exist!`,
+            errorMessage: `${existingField} already exists!`,
             status: false
           });
         }
@@ -151,7 +153,7 @@ app.post("/register", (req, res) => {
 
     } else {
       res.status(400).json({
-        errorMessage: 'Add proper parameter first!',
+        errorMessage: 'Add proper parameters first!',
         status: false
       });
     }
@@ -365,6 +367,146 @@ app.get("/get-product", (req, res) => {
     });
   }
 
+});
+
+/* API to Add Course */
+app.post("/add-course", upload.none(), (req, res) => {
+  try {
+    if (req.body && req.body.name && req.body.desc && req.body.instructor) {
+
+      let new_course = new course();
+      new_course.name = req.body.name; // Course Name
+      new_course.desc = req.body.desc; // Description
+      new_course.instructor = req.body.instructor; // Instructor
+      new_course.user_id = req.user.id; // User ID
+      new_course.save((err, data) => {
+        if (err) {
+          res.status(400).json({
+            errorMessage: err,
+            status: false
+          });
+        } else {
+          res.status(200).json({
+            status: true,
+            title: 'Course Added Successfully',
+            course: data
+          });
+        }
+      });
+
+    } else {
+      res.status(400).json({
+        errorMessage: 'Please provide all required fields: name, description, and instructor.',
+        status: false
+      });
+    }
+  } catch (e) {
+    res.status(500).json({
+      errorMessage: 'Internal Server Error',
+      status: false
+    });
+  }
+});
+
+/* API to Delete Course */
+app.delete("/delete-course/:id", (req, res) => {
+  try {
+    course.findByIdAndDelete(req.params.id, (err, data) => {
+      if (err) {
+        res.status(400).json({
+          errorMessage: err,
+          status: false
+        });
+      } else {
+        res.status(200).json({
+          status: true,
+          title: 'Course Deleted Successfully',
+          course: data
+        });
+      }
+    });
+  } catch (e) {
+    res.status(500).json({
+      errorMessage: 'Internal Server Error',
+      status: false
+    });
+  }
+});
+
+/* API to Update Course */
+app.put("/update-course/:id", (req, res) => {
+  try {
+    if (req.body && req.body.name && req.body.desc && req.body.instructor) {
+      course.findByIdAndUpdate(req.params.id, {
+        name: req.body.name,
+        desc: req.body.desc,
+        instructor: req.body.instructor
+      }, { new: true }, (err, data) => {
+        if (err) {
+          res.status(400).json({
+            errorMessage: err,
+            status: false
+          });
+        } else {
+          res.status(200).json({
+            status: true,
+            title: 'Course Updated Successfully',
+            course: data
+          });
+        }
+      });
+    } else {
+      res.status(400).json({
+        errorMessage: 'Please provide all required fields: name, description, and instructor.',
+        status: false
+      });
+    }
+  } catch (e) {
+    res.status(500).json({
+      errorMessage: 'Internal Server Error',
+      status: false
+    });
+  }
+});
+
+/* API to Get All Courses */
+app.get("/get-courses", (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10; // Number of courses per page
+    const skip = (page - 1) * limit;
+
+    const search = req.query.search ? { name: { $regex: req.query.search, $options: "i" } } : {};
+
+    course.find(search).skip(skip).limit(limit).exec((err, data) => {
+      if (err) {
+        res.status(400).json({
+          errorMessage: err,
+          status: false
+        });
+      } else {
+        course.countDocuments(search, (err, count) => {
+          if (err) {
+            res.status(400).json({
+              errorMessage: err,
+              status: false
+            });
+          } else {
+            res.status(200).json({
+              status: true,
+              courses: data,
+              pages: Math.ceil(count / limit)
+            });
+          }
+        });
+      }
+    });
+  } catch (e) {
+    res.status(500).json({
+      errorMessage: 'Internal Server Error',
+      status: false
+    });
+  }
 });
 
 app.listen(2000, () => {
